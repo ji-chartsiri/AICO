@@ -43,7 +43,7 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
     score_baseline = score_func(y_intercept, y)
 
     if visualize:
-        fig = plt.figure(layout='constrained', figsize=(30, 4 + 2*p))
+        fig = plt.figure(layout='constrained', figsize=(30, 4 + 2.5*p))
         fig.suptitle('\n'.join(['[AICO First-Order Test]',
                                 f'score function = {score_func.__name__} | seed = {seed} | sample size = {n:,} | alpha = {alpha}']),
                      fontweight='bold')
@@ -183,6 +183,25 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
 
 def second_order_test(x, y, model, score_func, intercept, k_list=None, first_order_result=None,
                       alpha=0.05, seed=0, visualize=True, pred_params=dict(), bins=50):
+    '''Perform AICO test to test if each pair (X_k, X_j) is second-order significant
+
+    Args:
+        x (numpy 2D array): matrix of predictor wherein each row is each observation and each column is each X_k
+        y (numpy vector): vector of response
+        model (object): model with respect to which the significance of each X_k will be tested. predict() method must be implemented.
+        score_func (function): score function of format f(predicted y, original y) that returns a real number
+        intercept (numpy vector): intercept values for each X_k
+        k_list (list of int): list of k to be tested. If None, all X_k will be tested.
+        first_order_result (Pandas DataFrame): result from first-order test. If None, a first-order test will be executed.
+        alpha (float): significance level (from 0 to 1)
+        seed (int): seed
+        visualize (boolean): indicator whether visualization is needed
+        pred_params (dictionary): the parameters to be passed to model.predict()
+        bins (int): number of bins in delta histogram plot
+    
+    Returns:
+        Pandas DataFrame: the second-order test results and confidence intervals.
+    '''
     set_random_seed(seed)
     n, p = x.shape[0], x.shape[1]
 
@@ -205,7 +224,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
     results = []
     for k in k_list:
         if visualize:
-            fig = plt.figure(layout='constrained', figsize=(30, 4 + 2*p))
+            fig = plt.figure(layout='constrained', figsize=(30, 4 + 2.5*p))
             fig.suptitle('\n'.join([f'[AICO Second-Order Test | Pairs ($X_k$, $X_j$) with k = {k}]',
                                     f'score function = {score_func.__name__} | seed = {seed} | sample size = {n:,} | alpha = {alpha}']),
                         fontweight='bold')
@@ -290,7 +309,8 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
                 ax_delta_hist.text(0.01, 0.97,
                                    '\n'.join(['[p-value]',
                                               '$H_0$: median($Δ^{kj}$) = 0 | $H_1$: median($Δ^{kj}$) > 0',
-                                              f'sign-test p-value: {p_sign_test:.5f} {"<significant>" if p_sign_test < alpha else ""}'
+                                              f'sign-test p-value: {p_sign_test:.5f} {"<significant>" if p_sign_test < alpha else ""}',
+                                              f'Note: $X_{{{j}}}$ is first-order {"significant" if sig_var_1[j] else "insignificant"}'
                                               ]),
                                    transform=ax_delta_hist.transAxes,
                                    fontsize=10,
@@ -323,7 +343,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
         if visualize:
             # Adjust range of x of CI plot
             x_min, x_max = results_k['lower'].min(), results_k['upper'].max()
-            for j in range(p):
+            for j in range(p - 1):
                 ax_delta_ci = axs_delta_ci[j]
                 ax_delta_ci.set_xlim(x_min, x_max)
 
