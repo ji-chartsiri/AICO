@@ -32,6 +32,17 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
     Returns:
         Pandas DataFrame: the first-order test results and confidence intervals.
     '''
+    # Pre-process input
+    if isinstance(x, np.ndarray):
+        var_name = [f'X{k}' for k in range(p)]
+    elif isinstance(x, pd.DataFrame):
+        var_name = list(x.columns)
+        x = np.array(x)
+    else:
+        raise Exception('x must be either Numpy array or Pandas dataframe')
+    y = np.array(y)
+    intercept = np.array(intercept)
+
     set_random_seed(seed)
     n, p = x.shape[0], x.shape[1]
 
@@ -85,6 +96,7 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
 
         results.append(dict(seed=seed,
                             k=k,
+                            var_name_k=var_name[k],
                             score_func=score_func.__name__,
                             sample_size=n,
                             median=median_k,
@@ -101,7 +113,7 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
             ax_delta_hist.hist(delta_k[(delta_k >= -xabs_thres) & (delta_k <= xabs_thres)], bins)
             ax_delta_hist.axvline(0, label=f'Zero', color='black', alpha=0.5)
             ax_delta_hist.axvline(median_k, label=f'Median = {median_k:.3f}', color='red', alpha=0.5)
-            ax_delta_hist.set_title(f'$Δ^{{{k}}}$')
+            ax_delta_hist.set_title(f'{k}: {var_name[k]}')
             ax_delta_hist.legend()
             ax_delta_hist.set_xlim(-xabs_thres - 0.05, xabs_thres + 0.05)
             ax_delta_hist.text(0.01, 0.97,
@@ -123,7 +135,7 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
                                  fmt='o',
                                  color='tab:red')
             ax_delta_ci.axvline(0, color='black', alpha=0.5)
-            ax_delta_ci.set_title(f'$X_{{{k}}}$: [{delta_k[n_lower]:.03g}, {delta_k[n_upper]:.03g}] {"<significant>" if p_sign_test < alpha else ""}')
+            ax_delta_ci.set_title(f'{k}: {var_name[k]} [{delta_k[n_lower]:.03g}, {delta_k[n_upper]:.03g}] {"<significant>" if p_sign_test < alpha else ""}')
             ax_delta_ci.spines['top'].set_visible(False)
             ax_delta_ci.spines['bottom'].set_alpha(0.5)
             ax_delta_ci.spines['right'].set_visible(False)
@@ -164,7 +176,7 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
             
             ax_data.set_xlim(-xabs_max, xabs_max)
             ax_data.set_ylabel('Y')
-            ax_data.set_title(f'$X_{{k}}$')
+            ax_data.set_title(f'{k}: {var_name[k]}')
             ax_data.legend()
 
     results = pd.DataFrame(results)
@@ -180,6 +192,65 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
 
     return results
 
+
+def check_second_order(x, y, model, score_func, intercept, first_order_result=None,
+                      alpha=0.05, seed=0, visualize=True, pred_params=dict(), bins=50):
+    x = np.array(x)
+    y = np.array(y)
+    intercept = np.array(intercept)
+
+    set_random_seed(seed)
+    n, p = x.shape[0], x.shape[1]
+
+    # Compute all-first-order score
+    sig_var_1 = first_order_result[(first_order_result['seed'] == seed) &
+                                   (first_order_result['p_sign_test'] < alpha)]['k']
+    x_fo = np.zeros((n, p))
+    x_fo[:, :] = intercept
+    x_fo[:, sig_var_1] = x[:, sig_var_1]
+    y_fo = model.predict(x_fo, **pred_params)
+    score_fo = score_func(y_fo, y)
+
+    # Compute full-x score
+    y_full = model.predict(x, **pred_params)
+    score_full = score_func(y_full, y)
+
+    delta_fo = score_full - score_fo
+
+    # p-value
+    p_sign_test = sign_test(delta_fo)
+
+    median_fo = np.median(delta_fo)
+
+    if visualize:
+        xabs_thres = np.quantile(np.abs(delta_fo), 0.975)
+        plt.figure(figsize=(12, 6))
+        plt.hist(delta_fo[(delta_fo >= -xabs_thres) & (delta_fo <= xabs_thres)], bins)
+        plt.axvline(0, label=f'Zero', color='black', alpha=0.5)
+        plt.axvline(median_fo, label=f'Median = {median_fo:.3f}', color='red', alpha=0.5)
+        plt.title('Check for higher-than-first-order effect')
+        plt.legend()
+        plt.xlim(-xabs_thres - 0.05, xabs_thres + 0.05)
+        plt.text(0.01, 0.97,
+                 '\n'.join(['[p-value]',
+                            '$H_0$: median($Δ^{fo}$) = 0 | $H_1$: median($Δ^{fo}$) > 0',
+                            f'sign-test p-value: {p_sign_test:.5f} {"<significant>" if p_sign_test < alpha else ""}'
+                            ]),
+                            transform=plt.gca().transAxes,
+                            fontsize=10,
+                            verticalalignment='top',
+                            bbox=dict(boxstyle='round',
+                                        facecolor='white',
+                                        alpha=0.5))
+        plt.plot()
+
+    return pd.DataFrame(dict(fo_k=[','.join([str(k) for k in sig_var_1])],
+                             score_func=[score_func.__name__],
+                             median=median_fo,
+                             p_sign_test=p_sign_test,
+                             alpha=alpha,
+                             has_higher_order_effect=[p_sign_test < alpha]))
+    
 
 def second_order_test(x, y, model, score_func, intercept, k_list=None, first_order_result=None,
                       alpha=0.05, seed=0, visualize=True, pred_params=dict(), bins=50):
@@ -202,6 +273,17 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
     Returns:
         Pandas DataFrame: the second-order test results and confidence intervals.
     '''
+    # Pre-process input
+    if isinstance(x, np.ndarray):
+        var_name = [f'X{k}' for k in range(p)]
+    elif isinstance(x, pd.DataFrame):
+        var_name = list(x.columns)
+        x = np.array(x)
+    else:
+        raise Exception('x must be either Numpy array or Pandas dataframe')
+    y = np.array(y)
+    intercept = np.array(intercept)
+
     set_random_seed(seed)
     n, p = x.shape[0], x.shape[1]
 
@@ -251,7 +333,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
                 score_baseline = score_func(y_j, y)
 
                 # Introduce X_k
-                x_kj = x_j
+                x_kj = x_j # Note: still refer to same object, essentially rename variable
                 x_kj[:, k] = x[:, k]
             else:
                 # If X_j is insignificant
@@ -282,7 +364,9 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
 
             results_k.append(dict(seed=seed,
                                   k=k,
+                                  var_name_k=var_name[k],
                                   j=j,
+                                  var_name_j=var_name[j],
                                   j_first_order_sig=sig_var_1[j],
                                   score_func=score_func.__name__,
                                   sample_size=n,
@@ -303,7 +387,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
                 ax_delta_hist.hist(delta_kj[(delta_kj >= -xabs_thres) & (delta_kj <= xabs_thres)], bins)
                 ax_delta_hist.axvline(0, label=f'Zero', color='black', alpha=0.5)
                 ax_delta_hist.axvline(median_kj, label=f'Median = {median_kj:.3f}', color='red', alpha=0.5)
-                ax_delta_hist.set_title(f'$Δ^{{({k}, {j})}}$')
+                ax_delta_hist.set_title(f'{k}, {j}: {var_name[k]}, {var_name[j]}')
                 ax_delta_hist.legend()
                 ax_delta_hist.set_xlim(-xabs_thres - 0.05, xabs_thres + 0.05)
                 ax_delta_hist.text(0.01, 0.97,
@@ -329,7 +413,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
                                     fmt='o',
                                     color='tab:red')
                 ax_delta_ci.axvline(0, color='black', alpha=0.5)
-                ax_delta_ci.set_title(f'$X_{{({k}, {j})}}$: [{delta_kj[n_lower]:.03g}, {delta_kj[n_upper]:.03g}] {"<significant>" if p_sign_test < alpha else ""}')
+                ax_delta_ci.set_title(f'{k}, {j}: {var_name[k]}, {var_name[j]} [{delta_kj[n_lower]:.03g}, {delta_kj[n_upper]:.03g}] {"<significant>" if p_sign_test < alpha else ""}')
                 ax_delta_ci.spines['top'].set_visible(False)
                 ax_delta_ci.spines['bottom'].set_alpha(0.5)
                 ax_delta_ci.spines['right'].set_visible(False)
