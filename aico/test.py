@@ -34,7 +34,7 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05,
     '''
     # Pre-process input
     if isinstance(x, np.ndarray):
-        var_name = [f'X{k}' for k in range(p)]
+        var_name = [f'X{k}' for k in range(x.shape[1])]
     elif isinstance(x, pd.DataFrame):
         var_name = list(x.columns)
         x = np.array(x)
@@ -275,7 +275,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
     '''
     # Pre-process input
     if isinstance(x, np.ndarray):
-        var_name = [f'X{k}' for k in range(p)]
+        var_name = [f'X{k}' for k in range(x.shape[1])]
     elif isinstance(x, pd.DataFrame):
         var_name = list(x.columns)
         x = np.array(x)
