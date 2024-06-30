@@ -12,6 +12,7 @@ from statsmodels.stats.proportion import binom_test
 from scipy.stats import norm
 
 from .plot import set_fig, plot_delta_hist_fo, plot_ci_fo, plot_data_fo
+from .utils import preprocess_intercept, preprocess_xy
 
 
 def sign_test(z, M=0):
@@ -90,7 +91,7 @@ def first_order_test_k(x, k, var_name, y, model, score_func, intercept, alpha=0.
     return result, delta_k
 
 
-def first_order_test(x, y, model, score_func, intercept, alpha=0.05, beta=None, num_beta_sim=50, beta_split_stratify=None,
+def first_order_test(x, y, model, score_func, intercept, alpha=0.05, beta=0, num_beta_sim=50, beta_split_stratify=None,
                      seed=0, visualize=True, pred_params=dict(), bins=50):
     '''Perform AICO test to test if each variable X_k is first-order significant
 
@@ -105,6 +106,8 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05, beta=None, 
             - Callable: the function that inputs x (the data) and k (indicate the k-th test is being performed) 
                         and returns two-dimensional numpy.ndarray where i-th row is the intercept correspoding to the i-th sample
         alpha (float): significance level (from 0 to 1)
+        beta (float): regularization parameter. The unregularized test has beta = 0. If beta = None, the optimal beta will be computed (currently only support Neural Network)
+        num_beta_sim (int): number of simulations used to find the optimal beta
         seed (int): seed
         visualize (boolean): indicator whether visualization is needed
         pred_params (dictionary): the parameters to be passed to model.predict()
@@ -153,19 +156,35 @@ def first_order_test(x, y, model, score_func, intercept, alpha=0.05, beta=None, 
 
 
 def check_second_order(x, y, model, score_func, intercept, first_order_result=None,
-                      alpha=0.05, beta=None, seed=0, visualize=True, pred_params=dict(), bins=50):
-    x = np.array(x)
-    y = np.array(y)
-    intercept = np.array(intercept)
-
+                      alpha=0.05, beta=0, num_beta_sim=50, beta_split_stratify=None,
+                      seed=0, visualize=True, pred_params=dict(), bins=50):
+    '''Check for the evidence of the existence of the second-order significant features pair.
+    '''
     set_random_seed(seed)
+
+    # Pre-process arguments
+    intercept = preprocess_intercept(intercept)
+    x, var_name, y = preprocess_xy(x, y)
+    p = x.shape[1]
     n, p = x.shape[0], x.shape[1]
+
+    if beta is None:
+        beta = compute_optimal_beta_fo(x=x,
+                                       y=y,
+                                       model=model,
+                                       score_func=score_func,
+                                       intercept=intercept,
+                                       alpha=alpha,
+                                       num_beta_sim=num_beta_sim,
+                                       beta_split_stratify=beta_split_stratify,
+                                       seed=seed,
+                                       pred_params=pred_params)
 
     # Compute all-first-order score
     sig_var_1 = first_order_result[(first_order_result['seed'] == seed) &
                                    (first_order_result['p_sign_test'] < alpha)]['k']
     x_fo = np.zeros((n, p))
-    x_fo[:, :] = intercept
+    x_fo[:, :] = intercept(x, 0)
     x_fo[:, sig_var_1] = x[:, sig_var_1]
     y_fo = model.predict(x_fo, **pred_params)
     score_fo = score_func(y_fo, y)
@@ -233,17 +252,11 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
         Pandas DataFrame: the second-order test results and confidence intervals.
     '''
     # Pre-process input
-    if isinstance(x, np.ndarray):
-        var_name = [f'X{k}' for k in range(p)]
-    elif isinstance(x, pd.DataFrame):
-        var_name = list(x.columns)
-        x = np.array(x)
-    else:
-        raise Exception('x must be either Numpy array or Pandas dataframe')
-    y = np.array(y)
-    intercept = np.array(intercept)
-
     set_random_seed(seed)
+
+    # Pre-process arguments
+    intercept = preprocess_intercept(intercept)
+    x, var_name, y = preprocess_xy(x, y)
     n, p = x.shape[0], x.shape[1]
 
     if k_list is None:
@@ -257,10 +270,6 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
     sig_var_1 = (first_order_result[first_order_result['seed'] == seed]
                  .set_index('k')['p_sign_test'] < alpha).to_dict()
     
-    # Compute baseline score
-    x_intercept = np.zeros((n, p))
-    x_intercept[:, :] = intercept
-
     # Consider each X_k
     results = []
     for k in k_list:
@@ -282,17 +291,20 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
         # Testing X_k by pairing with each X_j
         results_k = []
         for j in range(p):
+            # Compute baseline
+            x_intercept = intercept(x, k, j)
+
             if k == j:
                 continue
             elif sig_var_1[j]:
                 # If X_j is significant
-                x_j = np.copy(x_intercept)
+                x_j = x_intercept   # note: shallow copy, still refer to same object, essentially rename variable
                 x_j[:, j] = x[:, j]
                 y_j = model.predict(x_j, **pred_params)
                 score_baseline = score_func(y_j, y)
 
                 # Introduce X_k
-                x_kj = x_j # Note: still refer to same object, essentially rename variable
+                x_kj = x_j # Note: shallow copy, still refer to same object, essentially rename variable
                 x_kj[:, k] = x[:, k]
             else:
                 # If X_j is insignificant
@@ -300,7 +312,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
                 score_baseline = score_func(y_intercept, y)
 
                 # Introduce X_k and X_j
-                x_kj = np.copy(x_intercept)
+                x_kj = x_intercept  # note: shallow copy, still refer to same object, essentially rename variable
                 x_kj[:, k] = x[:, k]
                 x_kj[:, j] = x[:, j]
 
@@ -345,7 +357,7 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
                 xabs_thres = np.quantile(np.abs(delta_kj), 0.975)
                 ax_delta_hist.hist(delta_kj[(delta_kj >= -xabs_thres) & (delta_kj <= xabs_thres)], bins)
                 ax_delta_hist.axvline(0, label=f'Zero', color='black', alpha=0.5)
-                ax_delta_hist.axvline(median_kj, label=f'Median = {median_kj:.3f}', color='red', alpha=0.5)
+                ax_delta_hist.axvline(median_kj, label=f'Median = {median_kj:.10f}', color='red', alpha=0.5)
                 ax_delta_hist.set_title(f'{k}, {j}: {var_name[k]}, {var_name[j]}')
                 ax_delta_hist.legend()
                 ax_delta_hist.set_xlim(-xabs_thres - 0.05, xabs_thres + 0.05)
@@ -353,8 +365,9 @@ def second_order_test(x, y, model, score_func, intercept, k_list=None, first_ord
                                    '\n'.join(['[p-value]',
                                               '$H_0$: median($Δ^{kj}$) = 0 | $H_1$: median($Δ^{kj}$) > 0',
                                               f'sign-test p-value: {p_sign_test:.5f} {"<significant>" if p_sign_test < alpha else ""}',
-                                              f'Note: $X_{{{j}}}$ is first-order {"significant" if sig_var_1[j] else "insignificant"}'
-                                              ]),
+                                              f'Note: $X_{{{j}}}$ is first-order {"significant" if sig_var_1[j] else "insignificant"}',
+                                              '',
+                                              f'Esimated P(Δ > 0) = {(delta_kj > 0).mean():.5f}']),
                                    transform=ax_delta_hist.transAxes,
                                    fontsize=10,
                                    verticalalignment='top',

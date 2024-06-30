@@ -5,9 +5,17 @@ from functools import partial
 def get_array_intercept(intercept_array):
     '''Helper function for preprocess_intercept. Construct the intercept from array
     '''
-    def array_intercept(x, k, intercept_array):
+    def array_intercept(x, k, j=None, intercept_array=None):
         intercept = np.zeros((x.shape[0], intercept_array.shape[1]))
-        intercept[:, :] = intercept_array[k, :]
+
+        if intercept_array.ndim == 2:
+            if j is None:
+                intercept[:, :] = intercept_array[k, :]
+            else:
+                intercept[:, :] = intercept_array[j, :]
+        elif intercept_array.ndim == 3:
+            intercept[:, :] = intercept_array[k, j, :]
+
         return intercept
     
     return partial(array_intercept, intercept_array=intercept_array)

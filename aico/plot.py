@@ -103,7 +103,7 @@ def plot_delta_hist_fo(x, y, model, score_func, intercept, alpha=0.05, beta=None
                                '$H_0$: median($Δ^j$) = 0 | $H_1$: median($Δ^j$) > 0',
                                f'sign-test p-value: {p_sign_test:.5f} {"<significant>" if p_sign_test < alpha else ""}',
                                '',
-                               f'P($\Delta$ > 0) = {(delta_k > 0).mean():.5f}']),
+                               f'Esimated P(Δ > 0) = {(delta_k > 0).mean():.5f}']),
                     transform=ax.transAxes,
                     fontsize=10,
                     verticalalignment='top',
