@@ -6,15 +6,17 @@ This repository provides the implementation of **AICO (Add-In Covariates)**, a m
 
 Supervised learning algorithms are increasingly being used to guide economic and social decisions. However, the opaqueness of these algorithms presents significant challenges, particularly in highly regulated domains such as financial services, healthcare, and the judicial sector, where transparency is crucial.
 
-This project introduces **AICO**, a feature significance test that improve model transparency by testing the significance of input features (variables) in a supervised learning algorithm. AICO evaluates the incremental effect of each feature on model predictive or decision performance, relative to a baseline where all features are kept constant.
+This project introduces **AICO**, a feature significance test that improve model transparency by testing the significance of input features (variables) in a supervised learning algorithm. AICO evaluates the incremental effect of each feature on model predictive or decision performance, relative to a baseline where features' information are removed.
 
 ## Contributions
 
 ### Model-Agnostic Hypothesis Testing Framework
-AICO provides a versatile framework for hypothesis testing in machine learning models, with the following contributions:
-- **Model-Agnostic**: A model-agnostic hypothesis testing framework that can be applied to any supervised machine learning models including regression and classification without assumption of the model's underlying structure
-- **Statistically-Grounded**: Delivers measures of feature importance including exact non-asymptotic p-value, exact non-asymptotic confidence interval, and feature importance score
-- **Computationally Efficient**: No refitting required
+
+AICO offers a flexible and powerful framework for hypothesis testing in machine learning models, with the following key features:
+
+- **Model-Agnostic**: The AICO framework is model-agnostic, meaning it can be applied to any supervised learning model—whether regression or classification—without making assumptions about the model's underlying structure.
+- **Statistically Rigorous**: Provides robust measures of feature importance, including exact, non-asymptotic p-values and confidence intervals, and feature importance scores, enabling the features ranking.
+- **Computational Efficiency**: Requires no retraining or refitting of the model, making it computationally efficient.
 
 ## Repository Structure
 
