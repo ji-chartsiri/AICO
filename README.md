@@ -10,9 +10,7 @@ This project introduces **AICO**, a feature significance test that improve model
 
 ## Contributions
 
-### Model-Agnostic Hypothesis Testing Framework
-
-AICO offers a flexible and powerful framework for hypothesis testing in machine learning models, with the following key features:
+AICO offers a flexible and powerful framework for hypothesis testing in supervised machine learning models, with the following key features:
 
 - **Model-Agnostic**: The AICO framework is model-agnostic, meaning it can be applied to any supervised learning model—whether regression or classification—without making assumptions about the model's underlying structure.
 - **Statistically Rigorous**: Provides robust measures of feature importance, including exact, non-asymptotic p-values and confidence intervals, and feature importance scores, enabling the features ranking.
@@ -36,4 +34,4 @@ This command will create a conda environment with all the required packages.
 
 ## Running the Demonstration
 
-The Demo.ipynb notebook includes an end-to-end demonstration of the AICO test with simulated regression data.
+The Demo.ipynb notebook includes an end-to-end demonstration of the AICO test with simulated regression data, simulated classification data, and empirical data.
