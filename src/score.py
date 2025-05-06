@@ -26,7 +26,7 @@ def neg_absolute_loss(predicted_y, true_y):
     """
     return -np.abs(true_y - np.squeeze(predicted_y))
 
-def neg_binary_cross_entropy_loss(predicted_y, true_y):
+def neg_binary_cross_entropy_loss(predicted_y, true_y, dtype=np.float64):
     """
     Compute the negative binary cross-entropy loss between the predicted and true values.
 
@@ -39,22 +39,22 @@ def neg_binary_cross_entropy_loss(predicted_y, true_y):
     """
     predicted_y = (np.array(predicted_y)
                    .flatten()
-                   .astype(np.longdouble))
+                   .astype(dtype))
 
     predicted_y_0 = np.clip(-predicted_y[true_y == 0],
-                            np.nextafter(-1, 0, dtype=np.longdouble),
+                            np.nextafter(-1, 0, dtype=dtype),
                             None)
 
     predicted_y_1 = np.clip(predicted_y[true_y == 1],
-                            np.nextafter(0, 1, dtype=np.longdouble),
+                            np.nextafter(0, 1, dtype=dtype),
                             None)
 
-    loss = np.zeros_like(predicted_y, dtype=np.longdouble)
+    loss = np.zeros_like(predicted_y, dtype=dtype)
     loss[true_y == 0] = np.log1p(predicted_y_0)
     loss[true_y == 1] = np.log(predicted_y_1)
     return loss
 
-def neg_logit_loss(predicted_y, true_y):
+def neg_logit_loss(predicted_y, true_y, dtype=np.float64):
     """
     Compute the negative logit loss between the predicted and true values.
 
@@ -67,14 +67,17 @@ def neg_logit_loss(predicted_y, true_y):
     """
     predicted_y = (predicted_y
                    .flatten()
-                   .astype(np.longdouble))
+                   .astype(dtype))
     
     predicted_y = np.clip(predicted_y,
-                          np.nextafter(0, 1, dtype=np.longdouble),
-                          np.nextafter(1, 0, dtype=np.longdouble))
+                          np.nextafter(0, 1, dtype=dtype),
+                          np.nextafter(1, 0, dtype=dtype))
 
-    loss = np.zeros_like(predicted_y, dtype=np.longdouble)
+    loss = np.zeros_like(predicted_y, dtype=dtype)
     loss[true_y == 0] = np.log1p(-predicted_y[true_y == 0]) - np.log(predicted_y[true_y == 0])
     loss[true_y == 1] = np.log(predicted_y[true_y == 1]) - np.log1p(-predicted_y[true_y == 1])
 
     return loss
+
+def predicted_y_identity(predicted_y, true_y):
+    return predicted_y
