@@ -15,8 +15,13 @@ def process_vars(vars, vars_ignored, vars_discrete, vars_categorical):
     Returns:
     - vars (pd.DataFrame): DataFrame containing all variables with their types (continuous, discrete, categorical, or ignored) and columns in original dataframe.
     """
+    vars = np.array(vars, dtype=str)
+    vars_index_original = (pd.DataFrame(dict(variable=vars))
+                           .reset_index(names='variable_index')
+                           .set_index('variable'))
+
     vars_ignored = np.array(vars_ignored, dtype=str)
-    vars = np.setdiff1d(np.array(vars, dtype=str), vars_ignored)
+    vars = np.setdiff1d(vars, vars_ignored)
     vars_discrete = np.array(vars_discrete, dtype=str)
 
     if isinstance(vars_categorical, dict):
@@ -31,11 +36,20 @@ def process_vars(vars, vars_ignored, vars_discrete, vars_categorical):
     flatten_vars_categorical = np.concatenate([np.array(vars) for vars in vars_categorical.values()])
     vars_continuous = vars[~np.isin(vars, np.union1d(vars_discrete, flatten_vars_categorical))]
 
-    vars = (pd.concat([pd.DataFrame(dict(variable=vars_continuous, type='continuous', columns=[[col] for col in vars_continuous])),
-                       pd.DataFrame(dict(variable=vars_discrete, type='discrete', columns=[[col] for col in vars_discrete])),
-                       pd.DataFrame(dict(variable=vars_categorical.keys(), type='categorical', columns=[vars_categorical[var] for var in vars_categorical.keys()])),
-                       pd.DataFrame(dict(variable=vars_ignored, type='ignored', columns=[[col] for col in vars_ignored]))])
+    vars = (pd.concat([pd.DataFrame(dict(variable=vars_continuous, 
+                                         type='continuous', 
+                                         columns=[[col] for col in vars_continuous])),
+                       pd.DataFrame(dict(variable=vars_discrete, 
+                                         type='discrete', 
+                                         columns=[[col] for col in vars_discrete])),
+                       pd.DataFrame(dict(variable=vars_categorical.keys(), 
+                                         type='categorical', 
+                                         columns=[vars_categorical[var] for var in vars_categorical.keys()])),
+                       pd.DataFrame(dict(variable=vars_ignored, 
+                                         type='ignored', 
+                                         columns=[[col] for col in vars_ignored]))])
             .set_index('variable'))
+    vars['variable_index'] = vars.apply(lambda var: vars_index_original.loc[var['columns'], 'variable_index'].min(), axis=1)
 
     return vars
 
@@ -235,7 +249,6 @@ def summary(result):
 
     # ------------------------ 4) Main Logic ------------------------
     # 4.1 Print the high-level info in two columns
-    #    (We'll base banner width on the columns for the "significant" table, for consistency.)
     sig_cols = get_ordered_columns(super_headers_significant, columns_config)
     print_info(info_lines, sig_cols)
 
@@ -246,8 +259,19 @@ def summary(result):
 
     # Separate data
     sig_df = result[result['significance'] == 1].sort_values("rank")
-    incon_df = result[(result['significance'].isna()) & (result['type'] != 'ignored')].sort_values("rank")
-    insig_df = result[result['significance'] == 0].sort_values("rank")
+
+    incon_df = (
+        result[(result['significance'].isna()) & (result['type'] != 'ignored')]
+        .assign(rank="-")
+        .sort_values('variable_index')
+    )
+
+    insig_df = (
+        result[result['significance'] == 0]
+        .assign(rank="-")
+        .sort_values('variable_index')
+    )
+
     ign_df = result[result['type'] == 'ignored']
 
     # 4.2 Print significant table
@@ -267,6 +291,7 @@ def summary(result):
         else:
             print_table(incon_df, super_headers_inconclusive, columns_config)
         print(make_banner_line(incon_cols))
+
     # 4.4 Print insignificant table
     insig_cols = get_ordered_columns(super_headers_insignificant, columns_config)
     if insig_df.empty:
