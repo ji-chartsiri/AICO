@@ -93,6 +93,6 @@ class AltModeAgg:
         def agg(x_test, y_test):
             x_baseline = x_test.copy()
             x_baseline.loc[:, :] = x_mode.iloc[0].values
-            x_baseline.loc[x_test.eq(x_mode.iloc[0]).all(axis=1), :] = x_mode.iloc[1].values
+            x_baseline.loc[x_test.eq(x_mode.iloc[0]).all(axis=1), :] = x_mode.iloc[[1]].values
             return x_baseline
         return agg

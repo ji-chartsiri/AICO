@@ -7,7 +7,7 @@ def compute_response(aico):
     """
     Compute the baseline and treatment responses for each feature.
     """
-    aico.response_baseline = pd.DataFrame(index=aico.x_test.index)
+    aico.response_baseline = dict()
     aico.response_treatment = aico.response_baseline.copy()
     for var in aico.vars[aico.vars['type'] != 'ignored'].index:
         x_baseline, x_treatment = aico.baseline(aico.x_test, aico.y_test, var)
