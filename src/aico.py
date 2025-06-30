@@ -2,7 +2,7 @@ import pandas as pd
 from functools import partial
 
 from src.baseline import Baseline
-from src.utils import process_vars, summary
+from src.util import process_vars, summary
 from src.test import compute_response, compute_delta, compute_test, compute_rank, realize
 from src.score import neg_squared_loss
 from src.plot import plot_conditional
@@ -36,6 +36,7 @@ class AICO:
         self.baseline = baseline
         self.baseline.update(x_train, y_train, pred_func, self.vars)
         self.conditions = None
+        self.groups = None
         self.seed = None
 
     def test(self, x_test, y_test):
@@ -62,6 +63,14 @@ class AICO:
         - condition (pd.Series or np.array): Boolean masks indicating inclusion (or exclusion) of each sample
         """
         self.conditions = conditions
+        self.compute_test()
+        self.realize()
+
+    def group(self, groups=None):
+        """
+        Apply group to the test set to perform group AICO test
+        """
+        self.groups = groups
         self.compute_test()
         self.realize()
 

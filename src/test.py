@@ -29,6 +29,7 @@ def compute_test(aico):
     Compute the p-values and confidence intervals for each feature and summarize the results.
     """
     delta = aico.delta if aico.conditions is None else aico.delta[aico.conditions]
+    delta = delta if aico.groups is None else delta.groupby(aico.groups if aico.conditions is None else aico.groups[aico.conditions]).mean()
     p_value = pd.concat([compute_sign_test(delta[col], aico.alpha) for col in delta.columns])
     conf_int = pd.concat([compute_conf_int(delta[col], aico.alpha) for col in delta.columns])
     aico.result = pd.merge(p_value, conf_int, left_index=True, right_index=True)
