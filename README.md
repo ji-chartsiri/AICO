@@ -2,6 +2,8 @@
 
 This repository provides the implementation of **AICO (Add-In Covariates)**, a model-agnostic feature significance test for supervised learning models. Developed by the **Advanced Financial Technologies Laboratory (AFTLab)** at **Stanford University**, AICO aims to enhance model transparency and provide insights into feature importance for machine learning algorithms.
 
+Link to paper: https://arxiv.org/abs/2506.23396
+
 ## Overview
 
 Supervised learning algorithms are increasingly being used to guide economic and social decisions. However, the opaqueness of these algorithms presents significant challenges, particularly in highly regulated domains such as financial services, healthcare, and the judicial sector, where transparency is crucial.
