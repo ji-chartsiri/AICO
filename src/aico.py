@@ -2,7 +2,7 @@ import pandas as pd
 from functools import partial
 
 from src.baseline import Baseline
-from src.util import process_vars, summary
+from src.utils import process_vars, summary
 from src.test import compute_response, compute_delta, compute_test, compute_rank, realize
 from src.score import neg_squared_loss
 from src.plot import plot_conditional
