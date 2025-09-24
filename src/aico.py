@@ -1,11 +1,11 @@
 import pandas as pd
 from functools import partial
 
-from src.baseline import Baseline
-from src.utils import process_vars, summary
-from src.test import compute_response, compute_delta, compute_test, compute_rank, realize
-from src.score import neg_squared_loss
-from src.plot import plot_conditional
+from .baseline import Baseline
+from .utils import process_vars, summary
+from .test import compute_response, compute_delta, compute_test, compute_rank, realize
+from .score import neg_squared_loss
+from .plot import plot_conditional
 
 class AICO:
     def __init__(self, x_train, y_train, pred_func, pred_params=dict(), score_func=neg_squared_loss, alpha=0.05, baseline=Baseline(), vars_ignored=[], vars_discrete=[], vars_categorical=[]):
