@@ -33,7 +33,7 @@ def process_vars(vars, vars_ignored, vars_discrete, vars_categorical):
             temp[var] = vars[np.char.startswith(vars, var)]
         vars_categorical = temp
 
-    flatten_vars_categorical = np.concatenate([np.array(vars) for vars in vars_categorical.values()])
+    flatten_vars_categorical = np.concatenate([np.array(cols) for cols in vars_categorical.values()]) if vars_categorical else np.array([], str)
     vars_continuous = vars[~np.isin(vars, np.union1d(vars_discrete, flatten_vars_categorical))]
 
     vars = (pd.concat([pd.DataFrame(dict(variable=vars_continuous, 
