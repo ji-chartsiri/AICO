@@ -29,7 +29,7 @@ class Baseline:
 
         if not self.glob:
             for var_name, var in self.vars.iterrows():
-                if var_name != test_var:
+                if var['type'] != 'ignored' and var_name != test_var:
                     cols = var['columns']
                     x_baseline[cols] = self.agg[var_name](x_test[cols], y_test)
                     x_treatment[cols] = x_baseline[cols].copy()
