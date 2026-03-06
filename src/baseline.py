@@ -2,15 +2,26 @@ import numpy as np
 from .aggregate import *
 
 class Baseline:
-    def __init__(self, continuous_agg=MeanAgg(), discrete_agg=AltModeAgg(), categorical_agg=AltModeAgg(), glob=True):
+    def __init__(
+        self,
+        continuous_agg=MeanAgg(),
+        discrete_agg=AltModeAgg(),
+        categorical_agg=AltModeAgg(),
+        conditional_samplers=None,
+        glob=True,
+    ):
         self.continuous_agg = continuous_agg
         self.discrete_agg = discrete_agg
         self.categorical_agg = categorical_agg
+        self.conditional_samplers = conditional_samplers or dict()
         self.glob = glob
     
     def update(self, x_train, y_train, pred_func, vars):
         self.vars = vars
         self.agg = dict()
+        self.x_train = x_train
+        self.y_train = y_train
+        self.pred_func = pred_func
         for var_name, var in vars.iterrows():
             if var['type'] == 'continuous':
                 agg = self.continuous_agg
@@ -25,13 +36,21 @@ class Baseline:
         x_treatment = x_baseline.copy()
 
         test_cols = self.vars.loc[test_var]['columns']
-        x_baseline[test_cols] = self.agg[test_var](x_test[test_cols], y_test)
+        if test_var in self.conditional_samplers:
+            sampler = self.conditional_samplers[test_var]
+            x_baseline[test_cols] = sampler(self.x_train, x_test, test_cols)
+        else:
+            x_baseline[test_cols] = self.agg[test_var](x_test[test_cols], y_test)
 
         if not self.glob:
             for var_name, var in self.vars.iterrows():
                 if var['type'] != 'ignored' and var_name != test_var:
                     cols = var['columns']
-                    x_baseline[cols] = self.agg[var_name](x_test[cols], y_test)
+                    if var_name in self.conditional_samplers:
+                        sampler = self.conditional_samplers[var_name]
+                        x_baseline[cols] = sampler(self.x_train, x_test, cols)
+                    else:
+                        x_baseline[cols] = self.agg[var_name](x_test[cols], y_test)
                     x_treatment[cols] = x_baseline[cols].copy()
 
         return x_baseline, x_treatment

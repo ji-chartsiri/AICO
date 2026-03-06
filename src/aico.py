@@ -5,7 +5,7 @@ from .baseline import Baseline
 from .utils import process_vars, summary
 from .test import compute_response, compute_delta, compute_test, compute_rank, realize
 from .score import neg_squared_loss
-from .plot import plot_conditional
+from .multipletest import apply_fdr, apply_fwer
 
 class AICO:
     def __init__(self, x_train, y_train, pred_func, pred_params=dict(), score_func=neg_squared_loss, alpha=0.05, baseline=Baseline(), vars_ignored=[], vars_discrete=[], vars_categorical=[]):
@@ -50,10 +50,36 @@ class AICO:
         self.x_test = x_test
         self.y_test = y_test
 
-        self.compute_response()     # compute f(\oX) and f(\uX)
-        self.compute_delta()        # compute \Delta
-        self.compute_test()         # perform test
-        self.compute_rank()         # compute the rank within each significance group (signifcant, inconclusive, insignificant)
+        self.compute_response()
+        self.compute_delta()
+        self.compute_test()
+        self.compute_rank()
+
+    def apply_multipletest(self, method="BH", alpha=None, family="fdr", p_col="p_value"):
+        """
+        Apply multiple-testing correction on top of the current AICO result.
+
+        Parameters
+        ----------
+        method : str
+            For FDR: 'BH' or 'BY'. For FWER: 'holm' or 'bonferroni'.
+        alpha : float or None
+            Target level. If None, uses self.alpha.
+        family : {'fdr', 'fwer'}
+            Which error rate to control.
+        p_col : str
+            Column name to use for p-values. If missing or NaN,
+            falls back to midpoints of [p_value_lower, p_value_upper].
+        """
+        if alpha is None:
+            alpha = self.alpha
+
+        if family == "fdr":
+            self.result = apply_fdr(self.result, alpha=alpha, method=method, p_col=p_col)
+        elif family == "fwer":
+            self.result = apply_fwer(self.result, alpha=alpha, method=method, p_col=p_col)
+        else:
+            raise ValueError(f"Unknown family '{family}', expected 'fdr' or 'fwer'.")
 
     def condition(self, conditions=None):
         """
@@ -139,4 +165,6 @@ class AICO:
         self.compute_rank()
     
     def plot_conditional(self, var, var_delta, save_path=None):
-        plot_conditional(self, var, var_delta, save_path)
+        from .plot import plot_conditional as _plot_conditional
+
+        _plot_conditional(self, var, var_delta, save_path)
